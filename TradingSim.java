@@ -19,6 +19,10 @@ import javafx.animation.Timeline;
 import javafx.animation.KeyFrame;
 import javafx.util.Duration;
 
+
+import javafx.scene.web.WebView;
+import javafx.scene.web.WebEngine;
+
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Date;
@@ -195,58 +199,41 @@ public class TradingSim extends Application {
     private double currentBtcPrice = 67200.0;
     private int timeIndex = 10;
 
-    private StackPane createCenterChart() {
+private StackPane createCenterChart() {
         StackPane pane = new StackPane();
-        pane.setPadding(new Insets(10));
+        pane.setPadding(new Insets(0));
         pane.setStyle("-fx-background-color: #1e1e1e; -fx-border-color: #333;");
 
-        // 1. Configure X and Y Axes
-        NumberAxis xAxis = new NumberAxis();
-        xAxis.setLabel("Time (Seconds)");
-        xAxis.setTickLabelFill(javafx.scene.paint.Color.web("#888"));
-        xAxis.setAutoRanging(true);
+        // Create a JavaFX WebView to render the live TradingView widget
+        WebView webView = new WebView();
+        WebEngine webEngine = webView.getEngine();
 
-        NumberAxis yAxis = new NumberAxis(65000, 70000, 500);
-        yAxis.setLabel("Price (USD)");
-        yAxis.setTickLabelFill(javafx.scene.paint.Color.web("#888"));
+        // Official TradingView Advanced Chart HTML Widget (Dark theme, Binance BTCUSDT feed)
+        String htmlContent = "<HTML><BODY style='background-color: #1e1e1e; margin:0; padding:0; overflow:hidden;'>" +
+            "<!-- TradingView Widget BEGIN -->" +
+            "<div class=\"tradingview-widget-container\" style=\"height:100vh;width:100vw\">" +
+            "  <div class=\"tradingview-widget-container__widget\" style=\"height:100%;width:100%\"></div>" +
+            "  <script type=\"text/javascript\" src=\"https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js\" async>" +
+            "  {" +
+            "    \"autosize\": true," +
+            "    \"symbol\": \"BINANCE:BTCUSDT\"," +
+            "    \"interval\": \"D\"," +
+            "    \"timezone\": \"Etc/UTC\"," +
+            "    \"theme\": \"dark\"," +
+            "    \"style\": \"1\"," +
+            "    \"locale\": \"en\"," +
+            "    \"allow_symbol_change\": true," +
+            "    \"calendar\": false," +
+            "    \"support_host\": \"https://www.tradingview.com\"" +
+            "  }" +
+            "  </script>" +
+            "</div>" +
+            "<!-- TradingView Widget END -->" +
+            "</BODY></HTML>";
 
-        // 2. Create LineChart instance
-        LineChart<Number, Number> lineChart = new LineChart<>(xAxis, yAxis);
-        lineChart.setTitle("BTC/USD - Live Market Feed");
-        lineChart.setStyle("-fx-background-color: transparent;");
+        webEngine.loadContent(htmlContent);
 
-        // 3. Initialize data series with starting points
-        btcSeries = new XYChart.Series<>();
-        btcSeries.setName("BTC/USD Price");
-        
-        btcSeries.getData().add(new XYChart.Data<>(1, 66200));
-        btcSeries.getData().add(new XYChart.Data<>(2, 66500));
-        btcSeries.getData().add(new XYChart.Data<>(3, 66100));
-        btcSeries.getData().add(new XYChart.Data<>(4, 66800));
-        btcSeries.getData().add(new XYChart.Data<>(5, 66600));
-        btcSeries.getData().add(new XYChart.Data<>(6, 67200));
-
-        lineChart.getData().add(btcSeries);
-        lineChart.setCreateSymbols(false); // Clean line look
-
-        // 4. Start a live Timeline to push new price fluctuations every 2 seconds
-        Timeline liveTicker = new Timeline(
-            new KeyFrame(Duration.seconds(2), event -> {
-                double fluctuation = (Math.random() * 300) - 150;
-                currentBtcPrice += fluctuation;
-                timeIndex++;
-
-                btcSeries.getData().add(new XYChart.Data<>(timeIndex, currentBtcPrice));
-
-                if (btcSeries.getData().size() > 15) {
-                    btcSeries.getData().remove(0);
-                }
-            })
-        );
-        liveTicker.setCycleCount(Timeline.INDEFINITE);
-        liveTicker.play();
-
-        pane.getChildren().add(lineChart);
+        pane.getChildren().add(webView);
         return pane;
     }
 
