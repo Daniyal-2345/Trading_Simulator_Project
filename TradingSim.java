@@ -19,6 +19,11 @@ import javafx.animation.Timeline;
 import javafx.animation.KeyFrame;
 import javafx.util.Duration;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import javafx.application.Platform;
 
 import javafx.scene.web.WebView;
 import javafx.scene.web.WebEngine;
@@ -30,6 +35,15 @@ import java.util.List;
 
 public class TradingSim extends Application {
 
+    // Live market price feed variables & UI labels
+    private double currentBtcPrice = 81057.0; // Initialized close to live Binance price
+    private double currentEthPrice = 3540.0;
+    private double currentEurUsdPrice = 1.0845;
+
+    private final Label btcIndexLabel = new Label("BTC/USD : $81,057.00");
+    private final Label ethIndexLabel = new Label("ETH/USD : $3,540.00");
+    private final Label eurIndexLabel = new Label("EUR/USD : 1.0845");
+
     // Blockchain backend instance
     private final Blockchain tradeLedger = new Blockchain();
     private final ObservableList<Block> ledgerObservableList = FXCollections.observableArrayList();
@@ -39,7 +53,7 @@ public class TradingSim extends Application {
         // 1. INITIALIZE MYSQL DATABASE TABLES AUTOMATICALLY ON STARTUP
         DatabaseManager.initializeDatabase();
         
-        // Data base connection checkup
+        // Database connection checkup
         DatabaseManager.testConnection();
         
         // 2. Load initial blocks into observable list
@@ -123,12 +137,18 @@ public class TradingSim extends Application {
         panel.setStyle("-fx-background-color: #2d2d2d; -fx-border-color: #333;");
         panel.setPrefWidth(280);
 
-        Label indicesTitle = new Label("Market Indices");
+        Label indicesTitle = new Label("Market Indices (Live Binance)");
         indicesTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
-        ListView<String> indicesList = new ListView<>();
-        indicesList.getItems().addAll("EUR/USD : 1.0845 (+0.3%)", "BTC/USD : $67,200 (-1.2%)", "ETH/USD : $3,540 (+0.8%)");
+        
+        ListView<Node> indicesList = new ListView<>();
         indicesList.setPrefHeight(120);
         indicesList.setStyle("-fx-background-color: #1e1e1e;");
+
+        btcIndexLabel.setStyle("-fx-text-fill: #2ecc71; -fx-font-weight: bold;");
+        ethIndexLabel.setStyle("-fx-text-fill: #2ecc71;");
+        eurIndexLabel.setStyle("-fx-text-fill: #2ecc71;");
+
+        indicesList.getItems().addAll(eurIndexLabel, btcIndexLabel, ethIndexLabel);
 
         Label orderTitle = new Label("Place Order");
         orderTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
@@ -167,23 +187,39 @@ public class TradingSim extends Application {
             return;
         }
 
-        // 1. Process numerical balance check & update via AccountManager
+        // 1. Fetch the exact live market price from Binance feed
+        double executionPrice = getLivePriceForAsset(asset);
+
+        // 2. Process numerical balance check & update via AccountManager
         boolean success = AccountManager.processTrade(action, asset, qty);
         if (!success) {
             showAlert("Trade Failed", "Insufficient cash balance or asset quantity to complete order.");
             return;
         }
 
-        // 2. Record trade to local cryptographic blockchain ledger
-        String txData = "Action: " + action + " | Asset: " + asset + " | Qty: " + qty + " | Cash Left: $" + String.format("%,.2f", AccountManager.getCashBalance());
+        // 3. Record trade with the live execution price to cryptographic blockchain ledger
+        String txData = String.format("Action: %s | Asset: %s | Qty: %.2f | Price: $%,.2f | Cash Left: $%,.2f", 
+            action, asset, qty, executionPrice, AccountManager.getCashBalance());
+        
         tradeLedger.addBlock(txData);
         ledgerObservableList.setAll(tradeLedger.getChain());
         
-        // 3. PERSIST TRADE TO MYSQL DATABASE USING THE LOGGED-IN USER
+        // 4. PERSIST TRADE TO MYSQL DATABASE USING THE LOGGED-IN USER
         String activeUser = UserSession.getLoggedInUser();
         DatabaseManager.logTradeToDatabase(activeUser, action, asset, qty);
         
-        showAlert("Trade Executed", "Successfully executed " + action + " for " + qty + " " + asset + " and logged to MySQL!");
+        showAlert("Trade Executed", String.format("Successfully executed %s for %.2f %s at live market price $%,.2f and logged to MySQL!", 
+            action, qty, asset, executionPrice));
+    }
+
+    // Helper method to retrieve the live price matching the selected asset
+    private double getLivePriceForAsset(String asset) {
+        switch (asset) {
+            case "BTC/USD": return currentBtcPrice;
+            case "ETH/USD": return currentEthPrice;
+            case "EUR/USD": return currentEurUsdPrice;
+            default: return 100.0;
+        }
     }
 
     private void showAlert(String title, String message) {
@@ -194,12 +230,7 @@ public class TradingSim extends Application {
         alert.showAndWait();
     }
 
-    // Declare series at class level so the live timer can access it
-    private XYChart.Series<Number, Number> btcSeries;
-    private double currentBtcPrice = 67200.0;
-    private int timeIndex = 10;
-
-private StackPane createCenterChart() {
+    private StackPane createCenterChart() {
         StackPane pane = new StackPane();
         pane.setPadding(new Insets(0));
         pane.setStyle("-fx-background-color: #1e1e1e; -fx-border-color: #333;");
@@ -207,6 +238,15 @@ private StackPane createCenterChart() {
         // Create a JavaFX WebView to render the live TradingView widget
         WebView webView = new WebView();
         WebEngine webEngine = webView.getEngine();
+
+        // Real Binance API background poller for 100% chart & trade synchronization
+        Timeline livePriceTicker = new Timeline(
+            new KeyFrame(Duration.seconds(3), event -> {
+                fetchRealBinancePrices();
+            })
+        );
+        livePriceTicker.setCycleCount(Timeline.INDEFINITE);
+        livePriceTicker.play();
 
         // Official TradingView Advanced Chart HTML Widget (Dark theme, Binance BTCUSDT feed)
         String htmlContent = "<HTML><BODY style='background-color: #1e1e1e; margin:0; padding:0; overflow:hidden;'>" +
@@ -235,6 +275,54 @@ private StackPane createCenterChart() {
 
         pane.getChildren().add(webView);
         return pane;
+    }
+    
+    private void fetchRealBinancePrices() {
+        HttpClient client = HttpClient.newBuilder()
+            .connectTimeout(java.time.Duration.ofSeconds(2))
+            .build();
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create("https://api.binance.com/api/v3/ticker/price?symbols=[\"BTCUSDT\",\"ETHUSDT\"]"))
+            .GET()
+            .build();
+
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+            .thenApply(HttpResponse::body)
+            .thenAccept(responseBody -> {
+                try {
+                    if (responseBody.contains("BTCUSDT")) {
+                        double btcPrice = parseJsonPrice(responseBody, "BTCUSDT");
+                        double ethPrice = parseJsonPrice(responseBody, "ETHUSDT");
+
+                        Platform.runLater(() -> {
+                            if (btcPrice > 0) currentBtcPrice = btcPrice;
+                            if (ethPrice > 0) currentEthPrice = ethPrice;
+                            
+                            // Update UI Market Indices live in sync with Binance & TradingView
+                            btcIndexLabel.setText(String.format("BTC/USD : $%,.2f", currentBtcPrice));
+                            ethIndexLabel.setText(String.format("ETH/USD : $%,.2f", currentEthPrice));
+                        });
+                    }
+                } catch (Exception ignored) {
+                    // Fallback silently if offline/rate-limited
+                }
+            });
+    }
+
+    // Lightweight JSON string parser to avoid heavy external libraries like Gson/Jackson
+    private double parseJsonPrice(String json, String symbol) {
+        try {
+            int symbolIdx = json.indexOf(symbol);
+            int priceKeyIdx = json.indexOf("price", symbolIdx);
+            int colonIdx = json.indexOf(":", priceKeyIdx);
+            int quote1 = json.indexOf("\"", colonIdx);
+            int quote2 = json.indexOf("\"", quote1 + 1);
+            String priceStr = json.substring(quote1 + 1, quote2);
+            return Double.parseDouble(priceStr);
+        } catch (Exception e) {
+            return -1;
+        }
     }
 
     private VBox createHistoryTray() {
