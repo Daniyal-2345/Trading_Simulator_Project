@@ -173,7 +173,7 @@ public class TradingSim extends Application {
             loginBtn.setManaged(true);
         });
 
-        bar.getChildren().addAll(logo, btnBtcTab, btnEthTab, btnEurTab, ledgerTab, depositBtn,spacer,demoBadge , balanceLabel,  userStatusLabel, loginBtn, logoutBtn, btnAdmin);
+        bar.getChildren().addAll(logo, btnBtcTab, btnEthTab, btnEurTab, ledgerTab, depositBtn,btnAdmin,spacer,demoBadge , balanceLabel,  userStatusLabel, loginBtn, logoutBtn );
         return bar;
     }
 
