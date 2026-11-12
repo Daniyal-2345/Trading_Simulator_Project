@@ -4,132 +4,173 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 public class AuthDialog {
 
-    // Displays the Login / Register Dialog Window
     public static void display(Runnable onLoginSuccess) {
         Stage authStage = new Stage();
         authStage.initModality(Modality.APPLICATION_MODAL);
-        authStage.setTitle("TradeSim - Authentication");
+        authStage.setTitle("TradeSim - Authentication Gateway");
+        authStage.setMinWidth(440);
+        authStage.setMinHeight(560);
+
+        VBox root = new VBox(15);
+        root.setPadding(new Insets(25));
+        root.setStyle("-fx-background-color: #1e1e1e;");
+        root.setAlignment(Pos.TOP_CENTER);
+
+        Label titleLabel = new Label("🔐 Welcome to TradeSim Terminal");
+        titleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;");
 
         TabPane tabPane = new TabPane();
+        tabPane.setStyle("-fx-background-color: #2d2d2d;");
 
-        // --- REGISTER TAB ---
-        Tab registerTab = new Tab("Register");
-        registerTab.setClosable(false);
-        
-        VBox regLayout = new VBox(12);
-        regLayout.setPadding(new Insets(20));
-        regLayout.setAlignment(Pos.CENTER);
-        regLayout.setStyle("-fx-background-color: #1e1e1e;");
-
-        TextField regFullName = new TextField();
-        regFullName.setPromptText("Full Name (Letters only)");
-        regFullName.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: white; -fx-prompt-text-fill: #888;");
-
-        TextField regUsername = new TextField();
-        regUsername.setPromptText("Username");
-        regUsername.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: white; -fx-prompt-text-fill: #888;");
-
-        PasswordField regPassword = new PasswordField();
-        regPassword.setPromptText("Password (8+ chars, Uppercase, Number, Special)");
-        regPassword.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: white; -fx-prompt-text-fill: #888;");
-        
-        PasswordField adminCodeField = new PasswordField();
-        adminCodeField.setPromptText("Admin Code (Leave blank if normal user)");
-        adminCodeField.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: white; -fx-prompt-text-fill: #888888;");
-
-        Button regButton = new Button("Create Account");
-        regButton.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
-
-        regButton.setOnAction(e -> {
-            String name = regFullName.getText().trim();
-            String user = regUsername.getText().trim();
-            String pass = regPassword.getText();
-            String adminCode = adminCodeField.getText().trim();
-
-            // 1. Validate fields using your regex validator
-            if (RegistrationValidator.validateAndRegister(name, user, pass)) {
-                
-                // 2. SAVE TO MYSQL DATABASE VIA DatabaseManager
-                boolean success = DatabaseManager.registerUser(name, user, pass, adminCode);
-                
-                if (success) {
-                    showAlert("Success", "Account created successfully! You can now log in with $100,000 balance.");
-                    // Clear text fields after successful registration
-                    regFullName.clear();
-                    regUsername.clear();
-                    regPassword.clear();
-                    adminCodeField.clear();
-                } else {
-                    showAlert("Registration Failed", "Username may already exist in the database.");
-                }
-            }
-        });
-
-        // ADDED adminCodeField into the layout children list so it renders on screen
-        regLayout.getChildren().addAll(new Label("Register New Account") {{
-            setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
-        }}, regFullName, regUsername, regPassword, adminCodeField, regButton);
-        registerTab.setContent(regLayout);
-
-        // --- LOGIN TAB ---
+        // ==========================================
+        // 1. LOGIN TAB SETUP
+        // ==========================================
         Tab loginTab = new Tab("Login");
         loginTab.setClosable(false);
+        VBox loginBox = new VBox(10);
+        loginBox.setPadding(new Insets(20));
+        loginBox.setStyle("-fx-background-color: #2d2d2d;");
 
-        VBox loginLayout = new VBox(12);
-        loginLayout.setPadding(new Insets(20));
-        loginLayout.setAlignment(Pos.CENTER);
-        loginLayout.setStyle("-fx-background-color: #1e1e1e;");
+        Label loginUserLabel = new Label("Username:");
+        loginUserLabel.setStyle("-fx-text-fill: #ccc; -fx-font-weight: bold;");
+        TextField loginUserField = new TextField();
+        loginUserField.setStyle("-fx-background-color: #1e1e1e; -fx-text-fill: white; -fx-prompt-text-fill: #777;");
+        loginUserField.setPromptText("Enter your account username");
+        
+        Label loginUserRule = new Label("• Must match an existing registered account username.");
+        loginUserRule.setStyle("-fx-text-fill: #777; -fx-font-size: 10px;");
 
-        TextField loginUsername = new TextField();
-        loginUsername.setPromptText("Username");
-        loginUsername.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: white; -fx-prompt-text-fill: #888;");
+        Label loginPassLabel = new Label("Password:");
+        loginPassLabel.setStyle("-fx-text-fill: #ccc; -fx-font-weight: bold;");
+        PasswordField loginPassField = new PasswordField();
+        loginPassField.setStyle("-fx-background-color: #1e1e1e; -fx-text-fill: white; -fx-prompt-text-fill: #777;");
+        loginPassField.setPromptText("Enter your security password");
+        
+        Label loginPassRule = new Label("• Case-sensitive password verification.");
+        loginPassRule.setStyle("-fx-text-fill: #777; -fx-font-size: 10px;");
 
-        PasswordField loginPassword = new PasswordField();
-        loginPassword.setPromptText("Password");
-        loginPassword.setStyle("-fx-background-color: #2d2d2d; -fx-text-fill: white; -fx-prompt-text-fill: #888;");
+        Button loginSubmitBtn = new Button("Login to Terminal");
+        loginSubmitBtn.setStyle("-fx-background-color: #007acc; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
+        loginSubmitBtn.setMaxWidth(Double.MAX_VALUE);
 
-        Button loginButton = new Button("Login");
-        loginButton.setStyle("-fx-background-color: #007acc; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
+        loginSubmitBtn.setOnAction(e -> {
+            String username = loginUserField.getText().trim();
+            String password = loginPassField.getText();
 
-        loginButton.setOnAction(e -> {
-            String user = loginUsername.getText().trim();
-            String pass = loginPassword.getText();
+            if (username.isEmpty() || password.isEmpty()) {
+                showAlert("Error", "Please fill in all login fields.");
+                return;
+            }
 
-            if (user.isEmpty() || pass.isEmpty()) {
-                showAlert("Error", "Please fill in all fields.");
-            } else {
-                // Verify against real MySQL database
-                boolean authenticated = DatabaseManager.loginUser(user, pass);
-                if (authenticated) {
-                    // Set active session
-                    UserSession.setLoggedInUser(user);
-                    
-                    showAlert("Success", "Welcome back, " + user + "! You are now logged in.");
-                    authStage.close();
-                    if (onLoginSuccess != null) {
-                        onLoginSuccess.run();
-                    }
-                } else {
-                    showAlert("Login Failed", "Invalid username or password.");
+            // FIXED: Calls correct DatabaseManager.loginUser method
+            boolean authenticated = DatabaseManager.loginUser(username, password);
+            if (authenticated) {
+                UserSession.setLoggedInUser(username);
+                if (onLoginSuccess != null) {
+                    onLoginSuccess.run();
                 }
+                authStage.close();
+            } else {
+                showAlert("Login Failed", "Invalid username or password.");
             }
         });
 
-        loginLayout.getChildren().addAll(new Label("Login to TradeSim") {{
-            setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
-        }}, loginUsername, loginPassword, loginButton);
-        loginTab.setContent(loginLayout);
+        loginBox.getChildren().addAll(
+            loginUserLabel, loginUserField, loginUserRule,
+            new Separator(),
+            loginPassLabel, loginPassField, loginPassRule,
+            new Region(), loginSubmitBtn
+        );
+        loginTab.setContent(loginBox);
+
+        // ==========================================
+        // 2. REGISTER TAB SETUP (Using RegistrationValidator)
+        // ==========================================
+        Tab registerTab = new Tab("Register");
+        registerTab.setClosable(false);
+        VBox registerBox = new VBox(10);
+        registerBox.setPadding(new Insets(20));
+        registerBox.setStyle("-fx-background-color: #2d2d2d;");
+
+        Label regNameLabel = new Label("Full Name:");
+        regNameLabel.setStyle("-fx-text-fill: #ccc; -fx-font-weight: bold;");
+        TextField regNameField = new TextField();
+        regNameField.setStyle("-fx-background-color: #1e1e1e; -fx-text-fill: white; -fx-prompt-text-fill: #777;");
+        regNameField.setPromptText("e.g., John Doe");
+        
+        Label regNameRule = new Label("• Only letters and spaces allowed (no numbers).");
+        regNameRule.setStyle("-fx-text-fill: #777; -fx-font-size: 10px;");
+
+        Label regUserLabel = new Label("Choose Username:");
+        regUserLabel.setStyle("-fx-text-fill: #ccc; -fx-font-weight: bold;");
+        TextField regUserField = new TextField();
+        regUserField.setStyle("-fx-background-color: #1e1e1e; -fx-text-fill: white; -fx-prompt-text-fill: #777;");
+        regUserField.setPromptText("Min 3 characters");
+        
+        Label regUserRule = new Label("• Must be unique and at least 3 characters long.");
+        regUserRule.setStyle("-fx-text-fill: #777; -fx-font-size: 10px;");
+
+        Label regPassLabel = new Label("Choose Password:");
+        regPassLabel.setStyle("-fx-text-fill: #ccc; -fx-font-weight: bold;");
+        PasswordField regPassField = new PasswordField();
+        regPassField.setStyle("-fx-background-color: #1e1e1e; -fx-text-fill: white; -fx-prompt-text-fill: #777;");
+        regPassField.setPromptText("Min 8 chars, uppercase, lowercase, number, symbol");
+        
+        Label regPassRule = new Label("• Min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char.");
+        regPassRule.setStyle("-fx-text-fill: #777; -fx-font-size: 10px;");
+
+        // Optional Admin Code field
+        Label adminCodeLabel = new Label("Admin Code (Optional):");
+        adminCodeLabel.setStyle("-fx-text-fill: #ccc; -fx-font-weight: bold;");
+        PasswordField adminCodeField = new PasswordField();
+        adminCodeField.setStyle("-fx-background-color: #1e1e1e; -fx-text-fill: white; -fx-prompt-text-fill: #777;");
+        adminCodeField.setPromptText("Enter secret code if admin");
+
+        Button regSubmitBtn = new Button("Create Secure Account");
+        regSubmitBtn.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
+        regSubmitBtn.setMaxWidth(Double.MAX_VALUE);
+
+        regSubmitBtn.setOnAction(e -> {
+            String fullName = regNameField.getText().trim();
+            String username = regUserField.getText().trim();
+            String password = regPassField.getText();
+            String adminCode = adminCodeField.getText();
+
+            // Delegate validation to RegistrationValidator
+            if (!RegistrationValidator.validateAndRegister(fullName, username, password)) {
+                return; 
+            }
+
+            // FIXED: Passes all 4 parameters to match DatabaseManager.registerUser(...)
+            boolean registered = DatabaseManager.registerUser(fullName, username, password, adminCode);
+            if (registered) {
+                showAlert("Success", "Account created successfully! You can now log in.");
+                tabPane.getSelectionModel().select(loginTab); 
+            } else {
+                showAlert("Registration Failed", "Username may already be taken in the database.");
+            }
+        });
+
+        registerBox.getChildren().addAll(
+            regNameLabel, regNameField, regNameRule,
+            regUserLabel, regUserField, regUserRule,
+            regPassLabel, regPassField, regPassRule,
+            adminCodeLabel, adminCodeField,
+            new Region(), regSubmitBtn
+        );
+        registerTab.setContent(registerBox);
 
         tabPane.getTabs().addAll(loginTab, registerTab);
+        root.getChildren().addAll(titleLabel, tabPane);
 
-        // Slightly increased height to comfortably fit the new admin code field
-        Scene scene = new Scene(tabPane, 380, 380);
+        Scene scene = new Scene(root);
         authStage.setScene(scene);
         authStage.showAndWait();
     }
