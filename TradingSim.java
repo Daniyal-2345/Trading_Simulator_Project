@@ -92,7 +92,7 @@ public class TradingSim extends Application {
         bar.setAlignment(Pos.CENTER_LEFT);
 
         Label logo = new Label("📈 TradeSim");
-        logo.setStyle("-fx-text-fill: #f1c40f; -fx-font-size: 16px; -fx-font-weight: bold;");
+        logo.setStyle("-fx-text-fill: yellow; -fx-font-size: 16px; -fx-font-weight: bold;");
 
         // Quick Index Switcher Buttons in Top Bar
         Button btnBtcTab = new Button("₿ BTC/USD");
@@ -119,9 +119,17 @@ public class TradingSim extends Application {
         
         balanceLabel.setStyle("-fx-text-fill: #2ecc71; -fx-font-weight: bold;");
 
-        Button depositBtn = new Button("Dashboard");
-        depositBtn.setStyle("-fx-background-color: #333; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
-        depositBtn.setOnAction(e -> PortfolioWindow.display());
+        Button portfolioBtn = new Button("Portfolio");
+        portfolioBtn.setStyle("-fx-background-color: #333; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
+        portfolioBtn.setOnAction(e -> PortfolioWindow.display());
+        
+        Button contactBtn = new Button("Contact Us");
+contactBtn.setStyle("-fx-background-color: #333; -fx-text-fill: white; -fx-cursor: hand;");
+contactBtn.setOnAction(e -> ContactUsWindow.display());
+
+ Button dashBtn = new Button("Dashboard");
+dashBtn.setStyle("-fx-background-color: #333; -fx-text-fill: white; -fx-cursor: hand;");
+dashBtn.setOnAction(e -> DashboardWindow.display());
 
         Label userStatusLabel = new Label("Not Logged In");
         userStatusLabel.setStyle("-fx-text-fill: #aaa; -fx-font-size: 12px;");
@@ -173,7 +181,7 @@ public class TradingSim extends Application {
             loginBtn.setManaged(true);
         });
 
-        bar.getChildren().addAll(logo, btnBtcTab, btnEthTab, btnEurTab, ledgerTab, depositBtn,btnAdmin,spacer,demoBadge , balanceLabel,  userStatusLabel, loginBtn, logoutBtn );
+        bar.getChildren().addAll(logo, btnBtcTab, btnEthTab, btnEurTab, ledgerTab, portfolioBtn, contactBtn,dashBtn, btnAdmin, spacer, demoBadge, balanceLabel, userStatusLabel, loginBtn, logoutBtn);
         return bar;
     }
 
@@ -182,40 +190,50 @@ public class TradingSim extends Application {
         balanceLabel.setText(String.format("Balance: $%,.2f USD", currentBalance));
     }
 
-    private VBox createLeftToolbar() {
-        VBox toolbar = new VBox(8);
-        toolbar.setPadding(new Insets(10, 4, 10, 4));
-        toolbar.setStyle("-fx-background-color: #252526; -fx-border-color: #333; -fx-border-width: 0 1 0 0;");
-        toolbar.setPrefWidth(48);
-        toolbar.setAlignment(Pos.TOP_CENTER);
+   private VBox createLeftToolbar() {
+    VBox toolbar = new VBox(10);
+    toolbar.setPadding(new Insets(10, 4, 10, 4));
+    toolbar.setStyle("-fx-background-color: #252526; -fx-border-color: #333; -fx-border-width: 0 1 0 0;");
+    toolbar.setPrefWidth(50);
+    toolbar.setAlignment(Pos.TOP_CENTER);
 
-        String[] icons = {"↖", "➕", "📈", "📏", "📐", "✏️", "🔤", "😀", "🧲", "🗑️"};
-         Button btn = new Button(icons[0]);
-         btn.setStyle("-fx-background-color: #3c3c3c; -fx-text-fill: white; -fx-cursor: hand;" );
-           btn.setOnAction(e -> {
-            AuthDialog.display(() -> {
-                String updatedUser = UserSession.getLoggedInUser();
-                if (updatedUser != null && !updatedUser.equals("Guest")) {
-                    AccountManager.reloadHoldingsFromDatabase(updatedUser);
-                    updateAccountBalanceDisplay();
-                    String role = DatabaseManager.getUserRole(updatedUser);
-                    if ("admin".equalsIgnoreCase(role)) {
-                        btnAdmin.setVisible(true);
-                        btnAdmin.setManaged(true);
-                    }
-               
-                }
-            });
-        });
-//        for (String icon : icons) {
-//            Button btn = new Button(icon);
-//            btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #ccc; -fx-font-size: 14px; -fx-cursor: hand;");
-//            btn.setPrefWidth(38);
-//            toolbar.getChildren().add(btn);
- //    }
- toolbar.getChildren().addAll(btn); 
-        return toolbar;
-    }
+    // 1. Dashboard Button
+    Button btnDash = new Button("📊");
+    btnDash.setTooltip(new Tooltip("Executive Dashboard"));
+    btnDash.setStyle("-fx-background-color: transparent; -fx-text-fill: #2ecc71; -fx-font-size: 15px; -fx-cursor: hand;");
+    btnDash.setPrefWidth(38);
+    btnDash.setOnAction(e -> DashboardWindow.display());
+
+    // 2. Portfolio Button
+    Button btnPortfolio = new Button("💼");
+    btnPortfolio.setTooltip(new Tooltip("Active Portfolio & Holdings"));
+    btnPortfolio.setStyle("-fx-background-color: transparent; -fx-text-fill: #f1c40f; -fx-font-size: 15px; -fx-cursor: hand;");
+    btnPortfolio.setPrefWidth(38);
+    btnPortfolio.setOnAction(e -> PortfolioWindow.display());
+
+    // 3. Chain Ledger Button
+    Button btnLedger = new Button("⛓️");
+    btnLedger.setTooltip(new Tooltip("Cryptographic Ledger"));
+    btnLedger.setStyle("-fx-background-color: transparent; -fx-text-fill: #0098ff; -fx-font-size: 15px; -fx-cursor: hand;");
+    btnLedger.setPrefWidth(38);
+    btnLedger.setOnAction(e -> LedgerWindow.display(ledgerObservableList));
+
+    // 4. Contact Us Support Button
+    Button btnContact = new Button("🎧");
+    btnContact.setTooltip(new Tooltip("Contact Support"));
+    btnContact.setStyle("-fx-background-color: transparent; -fx-text-fill: #e67e22; -fx-font-size: 15px; -fx-cursor: hand;");
+    btnContact.setPrefWidth(38);
+    btnContact.setOnAction(e -> ContactUsWindow.display());
+
+    // 5. Admin Panel Button (Uses your existing class field btnAdmin)
+    btnAdmin.setText("🛡️");
+    btnAdmin.setTooltip(new Tooltip("Admin Control Panel"));
+    btnAdmin.setStyle("-fx-background-color: transparent; -fx-text-fill: #e74c3c; -fx-font-size: 15px; -fx-cursor: hand;");
+    btnAdmin.setPrefWidth(38);
+
+    toolbar.getChildren().addAll(btnDash, btnPortfolio, btnLedger, new Separator(), btnContact, btnAdmin);
+    return toolbar;
+}
 
     private StackPane createCenterChart() {
         StackPane pane = new StackPane();
